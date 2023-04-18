@@ -56,10 +56,10 @@ class Block:
     def __repr__(self) -> str:
         return f"""
         Block(
-            {base64.encodebytes(self.hash)}, 
-            {self.neighbours.prev_pub_key}, 
-            {self.neighbours.next_pub_key},
-            {base64.encodebytes(self.neighbours.hash)}
+            hash:       {base64.encodebytes(self.hash)}, 
+            prev_pub:   {self.neighbours.prev_pub_key}, 
+            next_pub:   {self.neighbours.next_pub_key},
+            prev_hash:  {base64.encodebytes(self.neighbours.hash)}
         )"""
 
     def compute_hash(self) -> Tuple[int, bytes]:
@@ -98,8 +98,8 @@ class Sentinel(Block):
     def __repr__(self) -> str:
         return f"""
         Sentinel(
-            {base64.encodebytes(self.hash)}, 
-            {self.neighbours.prev_pub_key}, 
-            {self.neighbours.next_pub_key},
-            {base64.encodebytes(self.neighbours.hash)}
+            hash:       {base64.encodebytes(self.hash)}, 
+            prev_pub:   {self.neighbours.prev_pub_key}, 
+            next_pub:   {self.neighbours.next_pub_key},
+            prev_hash:  {base64.encodebytes(self.neighbours.hash)}
         )"""

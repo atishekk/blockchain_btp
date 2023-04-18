@@ -1,12 +1,11 @@
 from .models import Model
 from typing import List
 from models.layers import Layer
-from blockchain.block import Block, Sentinel, BlockMetadata, Neighbours
+from blockchain.block import Block
 import torch.nn as nn
 import random
 from collections import OrderedDict
 import torchvision
-from cryptography.hazmat.primitives import serialization
 
 
 class VGG11_Linear(Layer):
@@ -100,14 +99,7 @@ class VGG11(Model):
     LAYER = {"VGG11_Conv": VGG11_Conv, "VGG11_Linear": VGG11_Linear}
 
     def __init__(self, blocks: List[Block]):
-        self._blocks = blocks
-        self.sentinel = blocks[0]
-
-    def blocks(self) -> List[Block]:
-        return self._blocks
-
-    def get_sentinel(self) -> Block:
-        return self.sentinel
+        super().__init__(blocks)
 
     @classmethod
     def load_model(cls) -> nn.Module:
@@ -115,64 +107,13 @@ class VGG11(Model):
         # return torchvision.models.vgg11(torchvision.models.VGG11_Weights.IMAGENET1K_V1)
         return torchvision.models.vgg11()
 
-    @ classmethod
-    def build(cls) -> Model:
-        """
-        Build the VGG11 model
-        """
-
+    @classmethod
+    def new(cls) -> Model:
         model = cls.load_model()
         state = model.state_dict()
-        sentinel = Sentinel(
-            BlockMetadata(),
-            Neighbours(bytes(0)),
-            Layer()
-        )
-        blocks: List[Block] = [sentinel]
-        prev_block = sentinel
-        order = list(range(1, len(cls.MODEL) + 1))
-        random.shuffle(order)
-        current_layer = Layer()
-        for l in order:
-            layer = cls.MODEL[l - 1]
-            layer.append(state)
-            match layer[0]:
-                case "VGG11_Conv":
-                    current_layer = VGG11_Conv(*layer[1:])
-                case "VGG11_Linear":
-                    current_layer = VGG11_Linear(*layer[1:])
-            new_block = Block(BlockMetadata(), Neighbours(
-                prev_block.hash), current_layer)
-            blocks.append(new_block)
-            prev_block = new_block
+        blocks = cls.build(state, cls.MODEL, cls.LAYER)
+        return cls(blocks)
 
-        blocks = cls.update_keys(blocks, order)
-        blocks[0].neighbours.hash = blocks[-1].hash
-        return VGG11(blocks)
-
-    @classmethod
-    def update_keys(cls, blocks: List[Block], order: List[int]) -> List[Block]:
-        order += [0]
-        m = len(cls.MODEL) + 1
-        for layer_num in range(0, m):
-            curr_layer = blocks[order.index(layer_num)]
-            next_layer = blocks[order.index((layer_num + 1) % m)]
-            prev_layer = blocks[order.index((layer_num - 1) % m)]
-
-            curr_layer.neighbours.set_next_pub_key(
-                next_layer.pub.public_bytes(
-                    encoding=serialization.Encoding.PEM,
-                    format=serialization.PublicFormat.SubjectPublicKeyInfo
-                )
-            )
-            curr_layer.neighbours.set_prev_pub_key(
-                prev_layer.pub.public_bytes(
-                    encoding=serialization.Encoding.PEM,
-                    format=serialization.PublicFormat.SubjectPublicKeyInfo
-                )
-            )
-
-        return blocks
 
 # class VGG16(Model):
 #     def __init__(self):
