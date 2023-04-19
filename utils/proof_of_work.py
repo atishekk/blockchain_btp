@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
     from blockchain.block import Block
@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives import hashes
 class ProofOfWork:
 
     MAX_NONCE = sys.maxsize
-    TARGET_BITS = 1
+    TARGET_BITS = 4
 
     def __init__(self, target_bits: int, block: "Block"):
         self.block = block
@@ -23,11 +23,10 @@ class ProofOfWork:
         serialise the data to be hashed
         """
         b = self.block
-        params = (b.params, b.neighbours.hash,
-                  b.metadata, self.target_bits, nonce)
+        params = (b.neighbours.hash, b.metadata, self.target_bits, nonce)
         return pickle.dumps(params)
 
-    def run(self) -> tuple[int, bytes]:
+    def run(self) -> Tuple[int, bytes]:
         """
         computes the POW hash and the nonce value 
         for the block
@@ -50,11 +49,12 @@ class ProofOfWork:
         """
         validate that the block has a valid hash
         """
+        if self.block.hash == bytes(bytearray(32)):
+            return True
         data = self._prepare_data(self.block.nonce)
         digest = hashes.Hash(hashes.SHA3_256())
         digest.update(data)
         h = digest.finalize()
-
         if int.from_bytes(h, "big") > self._target:
             return False
         return True
