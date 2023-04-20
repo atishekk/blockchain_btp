@@ -2,7 +2,8 @@ import json
 from typing import cast, List, Dict
 
 from models.models import Model
-from request import RequestQueue, RequestType
+from models.vgg import VGG11
+from request import RequestQueue, Request, QueryInput, SetupInput, Input, RequestType
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
@@ -12,9 +13,13 @@ from enum import Enum
 class State(str, Enum):
     READY = "READY"
     NOT_READY = "NOT_READY"
+    WORKING = "WORKING"
+    RECOVERY = "RECOVERY"
 
 
 class VM:
+    MODELS = {"VGG11": VGG11}
+
     def __init__(self, queue: RequestQueue) -> None:
         self.queue = queue
         self.trusted = self._init_trusted_list()
@@ -45,15 +50,47 @@ class VM:
                 serialization.load_pem_private_key(f.read(), None)
             )
 
-    def get_vm_status(self) -> State:
-        return self.state
+    def setup(self, input: SetupInput) -> Model:
+        self.state = State.WORKING
+        input.validate()
 
-    def run(self, model: Model):
+        if input.model in self.MODELS:
+            model_cls = self.MODELS[input.model]
+            file = model_cls.fetch_model_file(input.model)
+            self.state = State.READY
+            return model_cls.decode(file)
+        else:
+            raise Exception("")
+
+    def query(self, model: Model, input: QueryInput):
         """
         Perform inference on the model
         """
+        self.state = State.WORKING
+        input.validate()
+
+        sen_out = model.sentinel.compute(input)
+        iters = len(model.blocks())
+        self.queue.add(Request().add_results(sen_out))
+
+        for i in range(iters):
+            for b in model.blocks():
+                if b.check_prev(self.queue):
+                    req = self.queue.peek()
+                    inter = req.get_recent_res()
+                    res = b.compute(inter)
+                    req.add_results(res)
+        if self.verify():
+            self.state = State.READY
+            return self.queue.peek().get_recent_res().result()
+        else:
+            self.recovery_mode()
+
+    def verify(self) -> bool:
         pass
 
-
-def infer(vm: VM, model: Model, data: bytes):
-    pass
+    def recovery_mode(self):
+        self.state = State.RECOVERY
+        # perform revovery here
+        self.state = State.READY
+        # raise an exception here

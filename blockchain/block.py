@@ -2,11 +2,11 @@ import time
 import os
 from typing import Tuple
 from cryptography.hazmat.primitives import serialization
-import base64
 
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from utils.proof_of_work import ProofOfWork
+from vm.request import RequestQueue, Intermediate
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -156,6 +156,12 @@ class Block:
             public_exponent=65537, key_size=2048)
         return private_key
 
+    def compute(self, data) -> Intermediate:
+        pass
+
+    def check_prev(self, queue: RequestQueue) -> bool:
+        pass
+
 
 class Sentinel(Block):
     def __init__(
@@ -189,3 +195,6 @@ class Sentinel(Block):
             AES:        {self.AES.hex()}
             neigh:      {self.neighbours}
         )"""
+
+    def compute(self, data) -> Intermediate:
+        pass

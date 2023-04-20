@@ -171,5 +171,6 @@ class Model(ABC):
         pass
 
     @classmethod
-    def fetch_weights(cls):
-        pass
+    def fetch_model_file(cls, model_name: str) -> str:
+        # fetch the model file here from IPFS
+        return model_name + ".sqlite"
