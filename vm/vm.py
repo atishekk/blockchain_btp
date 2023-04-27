@@ -1,9 +1,9 @@
 import json
-from typing import cast, List, Dict
+from typing import cast, List, Dict, Type
 
 from models.models import Model
 from models.vgg import VGG11
-from request import RequestQueue, Request, QueryInput, SetupInput, Input, RequestType
+from .request import RequestQueue, Request, QueryInput, SetupInput, Input, RequestType
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
@@ -18,7 +18,7 @@ class State(str, Enum):
 
 
 class VM:
-    MODELS = {"VGG11": VGG11}
+    MODELS: Dict[str, Type[Model]] = {"VGG11": VGG11}
 
     def __init__(self, queue: RequestQueue) -> None:
         self.queue = queue
@@ -73,7 +73,7 @@ class VM:
         iters = len(model.blocks())
         self.queue.add(Request().add_results(sen_out))
 
-        for i in range(iters):
+        for _ in range(iters):
             for b in model.blocks():
                 if b.check_prev(self.queue):
                     req = self.queue.peek()
