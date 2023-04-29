@@ -14,7 +14,7 @@ from collections import OrderedDict
 class Model(ABC):
     def __init__(self, blocks: List[Block]) -> None:
         self._blocks = blocks
-        self.sentinel = blocks[0]
+        self.sentinel = cast(Sentinel, blocks[0])
 
     def blocks(self) -> List[Block]:
         return self._blocks

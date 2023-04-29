@@ -10,8 +10,8 @@ from cryptography.hazmat.primitives import hashes
 
 class ProofOfWork:
 
-    MAX_NONCE = sys.maxsize
     TARGET_BITS = 4
+    MAX_NONCE = 2 ** 64
 
     def __init__(self, target_bits: int, block: "Block"):
         self.block = block
@@ -33,7 +33,7 @@ class ProofOfWork:
         """
         nonce = 0
         h = bytes()
-        while nonce < ProofOfWork.MAX_NONCE:
+        while nonce < self.MAX_NONCE:
             data = self._prepare_data(nonce)
             digest = hashes.Hash(hashes.SHA3_256())
             digest.update(data)
@@ -58,3 +58,10 @@ class ProofOfWork:
         if int.from_bytes(h, "big") > self._target:
             return False
         return True
+
+    def compute(self) -> bytes:
+        data = self._prepare_data(self.block.nonce)
+        digest = hashes.Hash(hashes.SHA3_256())
+        digest.update(data)
+        h = digest.finalize()
+        return h

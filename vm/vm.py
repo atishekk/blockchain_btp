@@ -74,12 +74,15 @@ class VM:
         self.queue.add(Request().add_results(sen_out))
 
         for _ in range(iters):
+            req = self.queue.peek()
+            inter = req.get_recent_res()
             for b in model.blocks():
-                if b.check_prev(self.queue):
-                    req = self.queue.peek()
-                    inter = req.get_recent_res()
+                if b.check_prev(inter):
                     res = b.compute(inter)
                     req.add_results(res)
+                    break
+                else:
+                    continue
         if self.verify():
             self.state = State.READY
             return self.queue.peek().get_recent_res().result()

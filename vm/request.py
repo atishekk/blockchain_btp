@@ -4,6 +4,7 @@ from collections import deque
 from abc import ABC, abstractmethod
 import torch
 from enum import Enum
+import pickle
 
 
 class Input(ABC):
@@ -37,8 +38,22 @@ class QueryInput(Input):
 
 
 class Intermediate:
-    def __init__(self) -> None:
-        pass
+    def __init__(
+            self,
+            block_hash: bytes,
+            en_AES: bytes,
+            comp: bytes,
+            digital_sig: bytes,
+            iv: bytes
+    ) -> None:
+        self.block_hash = block_hash
+        self.en_AES = en_AES
+        self.comp = comp
+        self.digital_sig = digital_sig
+        self.iv = iv
+
+    def serialise(self) -> bytes:
+        return pickle.dumps((self.block_hash, self.en_AES, self.comp, self.iv))
 
     def result(self):
         pass
