@@ -3,17 +3,19 @@ from vm.request import RequestQueue
 from typing import List
 from pathlib import Path
 
+from cryptography.fernet import Fernet
+
 
 class CLI:
     USAGE = """
         setup <model-name>
         query <image-path>
         utils build <model-name> <model-state-file>
-        utils publish <model-file> 
+        utils publish <model-file> <encryption-key>
     """
 
     @classmethod
-    def run(cls, ledger: str):
+    def run(cls, ledger: Path):
         interface = cls(ledger)
         while True:
             tx = input(">>> ").strip()
@@ -61,6 +63,19 @@ class CLI:
 
         out_file_name = Path(model_state_file.stem + ".sqlite")
         model_cls.encode(block_model, out_file_name)
+
+        fernet_key = Fernet.generate_key()
+        encryptor = Fernet(fernet_key)
+        with open(out_file_name, "rb") as dict_model:
+            data = dict_model.read()
+
+        en_data = encryptor.encrypt(data)
+
+        with open(out_file_name, "wb") as model_file:
+            model_file.write(en_data)
+
+        print(f"MODEL file written at {out_file_name} ")
+        print(f"Encryption key: {fernet_key.hex()}")
 
         return
 
