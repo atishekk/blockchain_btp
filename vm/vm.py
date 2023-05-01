@@ -52,7 +52,7 @@ class VM:
 
     def setup(self, input: SetupInput) -> Model:
         self.state = State.WORKING
-        input.validate()
+        input.validate(self)
 
         if input.model in self.MODELS:
             model_cls = self.MODELS[input.model]
@@ -67,7 +67,7 @@ class VM:
         Perform inference on the model
         """
         self.state = State.WORKING
-        input.validate()
+        input.validate(self)
 
         sen_out = model.sentinel.compute(input)
         iters = len(model.blocks())

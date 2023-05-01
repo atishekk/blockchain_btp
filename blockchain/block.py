@@ -281,4 +281,41 @@ class Sentinel(Block):
         )"""
 
     def compute(self, data: QueryInput) -> Intermediate:
-        pass
+        # serialise the tensor
+        out_array = data.data.detach().cpu().numpy()
+        out_b = BytesIO()
+        np.save(out_b, out_array)
+        out_comp_bytes = out_b.getvalue()
+
+        # encrypt the input data
+        iv = os.urandom(16)
+        cipher = Cipher(algorithms.AES(self.AES), modes.CBC(iv))
+        encryptor = cipher.encryptor()
+        out_comp = encryptor.update(out_comp_bytes) + encryptor.finalize()
+
+        out_AES = self.neighbours.next_pub_key.encrypt(
+            self.AES,
+            padding.OAEP(
+                padding.MGF1(hashes.SHA256()),
+                hashes.SHA256(),
+                None
+            )
+        )
+
+        # compute the blocks hash
+        pow = ProofOfWork(ProofOfWork.TARGET_BITS, self)
+        block_hash = pow.compute()
+
+        # compute the digital signature
+        res = Intermediate(block_hash, out_AES, out_comp, bytes(), iv)
+        serialised = res.serialise()
+        digital_sig = self.priv.sign(
+            serialised,
+            padding.PSS(
+                padding.MGF1(hashes.SHA256()),
+                padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+        res.digital_sig = digital_sig
+        return res

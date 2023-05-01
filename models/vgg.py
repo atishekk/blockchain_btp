@@ -6,6 +6,8 @@ import torch.nn as nn
 import torchvision
 from collections import OrderedDict
 from .layers import Layer
+from pathlib import Path
+import torch
 
 
 class VGG11(Model):
@@ -29,14 +31,14 @@ class VGG11(Model):
         super().__init__(blocks)
 
     @classmethod
-    def load_model(cls) -> nn.Module:
-        # temp will move to using fetch_weights
-        # return torchvision.models.vgg11(torchvision.models.VGG11_Weights.IMAGENET1K_V1)
-        return torchvision.models.vgg11()
+    def load_model(cls, state_file: Path) -> nn.Module:
+        model = torchvision.models.vgg11()
+        model.load_state_dict(torch.load(str(state_file)))
+        return model
 
     @classmethod
-    def new(cls) -> Model:
-        model = cls.load_model()
+    def new(cls, state_file: Path) -> Model:
+        model = cls.load_model(state_file)
         state = model.state_dict()
         blocks = cls.build(state, cls.MODEL, cls.LAYER)
         return cls(blocks)

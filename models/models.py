@@ -9,6 +9,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from sqlitedict import SqliteDict
 import pickle
 from collections import OrderedDict
+from pathlib import Path
 
 
 class Model(ABC):
@@ -23,9 +24,9 @@ class Model(ABC):
         return self.sentinel
 
     @classmethod
-    def encode(cls, model: "Model", file: str):
+    def encode(cls, model: "Model", file: Path):
         keys = [b.hash for b in model.blocks()]
-        db = SqliteDict(file)
+        db = SqliteDict(str(file))
         db["keys"] = pickle.dumps(keys)
 
         for block in model.blocks():
@@ -50,8 +51,8 @@ class Model(ABC):
         db.close()
 
     @ classmethod
-    def decode(cls, file: str) -> "Model":
-        db = SqliteDict(file)
+    def decode(cls, file: Path) -> "Model":
+        db = SqliteDict(str(file))
         keys = pickle.loads(db["keys"])
         blocks = []
 
@@ -167,7 +168,12 @@ class Model(ABC):
 
     @classmethod
     @abstractmethod
-    def load_model(cls) -> nn.Module:
+    def load_model(cls, state_file: Path) -> nn.Module:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def new(cls, state_file: Path) -> "Model":
         pass
 
     @classmethod

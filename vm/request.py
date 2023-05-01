@@ -5,12 +5,16 @@ from abc import ABC, abstractmethod
 import torch
 from enum import Enum
 import pickle
+from pathlib import Path
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from vm.vm import VM
 
 
 class Input(ABC):
-
     @abstractmethod
-    def validate(self) -> bool:
+    def validate(self, vm: "VM"):
         pass
 
 
@@ -18,8 +22,9 @@ class SetupInput(Input):
     def __init__(self, model: str) -> None:
         self.model = model
 
-    def validate(self) -> bool:
-        pass
+    def validate(self, vm: "VM"):
+        if self.model not in vm.MODELS:
+            raise Exception(f"Invalid query input - model: {self.model}")
 
 
 class QueryInput(Input):
@@ -33,7 +38,12 @@ class QueryInput(Input):
         self.data = data
         self.signature = signature
 
-    def validate(self) -> bool:
+    def validate(self, vm: "VM"):
+        pass
+
+
+class Result:
+    def __init__(self) -> None:
         pass
 
 
@@ -55,7 +65,7 @@ class Intermediate:
     def serialise(self) -> bytes:
         return pickle.dumps((self.block_hash, self.en_AES, self.comp, self.iv))
 
-    def result(self):
+    def result(self) -> Result:
         pass
 
 
@@ -78,7 +88,7 @@ class Request:
 
 
 class RequestQueue:
-    def __init__(self, ledger_file: str) -> None:
+    def __init__(self, ledger_file: Path) -> None:
         self.queue: deque[Request] = deque()
         self.ledger = ledger_file
 
