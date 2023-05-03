@@ -1,13 +1,13 @@
 import json
 from typing import cast, List, Dict, Type
+from enum import Enum
+from pathlib import Path
 
 from models.models import Model
 from models.vgg import VGG11
 from .request import RequestQueue, Request, QueryInput, SetupInput, Input, RequestType
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
-
-from enum import Enum
 
 
 class State(str, Enum):
@@ -50,15 +50,15 @@ class VM:
                 serialization.load_pem_private_key(f.read(), None)
             )
 
-    def setup(self, input: SetupInput) -> Model:
+    def setup(self, input: SetupInput):
         self.state = State.WORKING
-        input.validate(self)
 
         if input.model in self.MODELS:
             model_cls = self.MODELS[input.model]
-            file = model_cls.fetch_model_file(input.model)
+            self.model = model_cls.decode(input.model_file, input.key)
             self.state = State.READY
-            return model_cls.decode(file)
+            self.setup_input = input
+
         else:
             raise Exception("")
 
@@ -67,7 +67,6 @@ class VM:
         Perform inference on the model
         """
         self.state = State.WORKING
-        input.validate(self)
 
         sen_out = model.sentinel.compute(input)
         iters = len(model.blocks())

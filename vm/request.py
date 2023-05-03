@@ -6,6 +6,7 @@ import torch
 from enum import Enum
 import pickle
 from pathlib import Path
+from cryptography.fernet import Fernet
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -19,12 +20,18 @@ class Input(ABC):
 
 
 class SetupInput(Input):
-    def __init__(self, model: str) -> None:
+    def __init__(self, model: str, model_file: Path, key: str) -> None:
         self.model = model
+        self.model_file = model_file
+        self.key = key
 
     def validate(self, vm: "VM"):
         if self.model not in vm.MODELS:
-            raise Exception(f"Invalid query input - model: {self.model}")
+            raise Exception(f"Invalid request input - model: {self.model}")
+        try:
+            Fernet(self.key)
+        except ValueError:
+            raise Exception(f"Invalid request input - key: {self.key}")
 
 
 class QueryInput(Input):

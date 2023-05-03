@@ -1,5 +1,5 @@
 from vm.vm import VM
-from vm.request import RequestQueue
+from vm.request import RequestQueue, SetupInput
 from typing import List
 from pathlib import Path
 
@@ -8,7 +8,7 @@ from cryptography.fernet import Fernet
 
 class CLI:
     USAGE = """
-        setup <model-name>
+        setup <model-name> <model-file> <fernet-key>
         query <image-path>
         utils build <model-name> <model-state-file>
         utils publish <model-file> <encryption-key>
@@ -23,15 +23,20 @@ class CLI:
 
             match tokens[0].lower():
                 case "setup":
+                    if len(tokens) < 4:
+                        interface.print_usage(tx)
+                        continue
                     interface.setup(tokens)
 
                 case "query":
+                    if len(tokens) < 2:
+                        interface.print_usage(tx)
+                        continue
                     interface.query(tokens)
 
                 case "utils":
                     if len(tokens) < 4:
-                        print(f"Invalid request: '{tx}'")
-                        print(cls.USAGE)
+                        interface.print_usage(tx)
                         continue
 
                     match tokens[1].lower():
@@ -45,11 +50,22 @@ class CLI:
                     exit(0)
 
                 case _:
-                    print(f"Invalid request: '{tx}'")
-                    print(cls.USAGE)
+                    interface.print_usage(tx)
 
     def __init__(self, ledger_file: Path):
         self.vm = VM(RequestQueue(ledger_file))
+
+    def setup(self, tokens: List[str]):
+        model_name = tokens[1]
+        model_file = Path(tokens[2])
+        fernet_key = tokens[3]
+
+        s_input = SetupInput(model_name, model_file, fernet_key)
+        s_input.validate(self.vm)
+        self.vm.setup(s_input)
+
+    def query(self, tokens: List[str]):
+        print("Query")
 
     def utils_build(self, tokens: List[str]):
         model_name = tokens[2]
@@ -62,21 +78,10 @@ class CLI:
         block_model = model_cls.new(model_state_file)
 
         out_file_name = Path(model_state_file.stem + ".sqlite")
-        model_cls.encode(block_model, out_file_name)
-
-        fernet_key = Fernet.generate_key()
-        encryptor = Fernet(fernet_key)
-        with open(out_file_name, "rb") as dict_model:
-            data = dict_model.read()
-
-        en_data = encryptor.encrypt(data)
-
-        with open(out_file_name, "wb") as model_file:
-            model_file.write(en_data)
+        fernet_key = model_cls.encode(block_model, out_file_name)
 
         print(f"MODEL file written at {out_file_name} ")
-        print(f"Encryption key: {fernet_key.hex()}")
-
+        print(f"Encryption key: {fernet_key}")
         return
 
     def utils_publish(self):
@@ -85,8 +90,6 @@ class CLI:
     def cleanup(self):
         print("Clean up")
 
-    def setup(self, tokens: List[str]):
-        print("Setup")
-
-    def query(self, tokens: List[str]):
-        print("Query")
+    def print_usage(self, req: str):
+        print(f"Invalid request: '{req}'")
+        print(self.USAGE)

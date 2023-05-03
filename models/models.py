@@ -1,10 +1,13 @@
+import os
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, cast
+from typing import List, Dict, Any, cast, Tuple
+import random
 from blockchain.block import Block
 import torch.nn as nn
 from models.layers import Layer
 from blockchain.block import Sentinel, Block, BlockMetadata, Neighbours
-from cryptography.hazmat.primitives import serialization
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from sqlitedict import SqliteDict
 import pickle
@@ -13,9 +16,11 @@ from pathlib import Path
 
 
 class Model(ABC):
-    def __init__(self, blocks: List[Block]) -> None:
+    def __init__(self, blocks: List[Block], order: List[int], verify_hash: bytes) -> None:
         self._blocks = blocks
         self.sentinel = cast(Sentinel, blocks[0])
+        self.order = order
+        self.verify_hash = verify_hash
 
     def blocks(self) -> List[Block]:
         return self._blocks
@@ -24,7 +29,7 @@ class Model(ABC):
         return self.sentinel
 
     @classmethod
-    def encode(cls, model: "Model", file: Path):
+    def encode(cls, model: "Model", file: Path) -> bytes:
         keys = [b.hash for b in model.blocks()]
         db = SqliteDict(str(file))
         db["keys"] = pickle.dumps(keys)
@@ -47,12 +52,36 @@ class Model(ABC):
             )
             db[block.hash] = pickle.dumps(b)
 
+        db["order"] = pickle.dumps(model.order)
+        db["verify"] = pickle.dumps(model.verify_hash)
+
         db.commit()
         db.close()
 
+        # encrypt the model file
+        fernet_key = Fernet.generate_key()
+        encryptor = Fernet(fernet_key)
+        with open(file, "rb") as dict_model:
+            data = dict_model.read()
+
+        en_data = encryptor.encrypt(data)
+
+        with open(file, "wb") as model_file:
+            model_file.write(en_data)
+        return fernet_key
+
     @ classmethod
-    def decode(cls, file: Path) -> "Model":
-        db = SqliteDict(str(file))
+    def decode(cls, file: Path, key: str) -> "Model":
+        decryptor = Fernet(key)
+        with open(file, "rb") as model_file:
+            data = model_file.read()
+
+        de_data = decryptor.decrypt(data)
+        de_file = Path("de_"+file.stem + ".sqlite")
+        with open(de_file, "wb") as model_file:
+            model_file.write(de_data)
+
+        db = SqliteDict(str(de_file))
         keys = pickle.loads(db["keys"])
         blocks = []
 
@@ -95,8 +124,11 @@ class Model(ABC):
                     AES,
                     l_priv)
             blocks.append(block)
+        order = pickle.loads(db["order"])
+        verify_hash = pickle.loads(db["verify"])
         db.close()
-        return cls(blocks)
+        os.remove(de_file)
+        return cls(blocks, order, verify_hash)
 
     @ classmethod
     @ abstractmethod
@@ -109,7 +141,7 @@ class Model(ABC):
             state: Dict[str, Any],
             MODEL: List[List[Any]],
             LAYER: Dict[str, Any],
-    ) -> List[Block]:
+    ) -> Tuple[List[Block], List[int], bytes]:
 
         sentinel = Sentinel(
             BlockMetadata(),
@@ -135,7 +167,18 @@ class Model(ABC):
             prev_block = new_block
         blocks = cls.update_keys(blocks, order, MODEL)
         blocks[0].neighbours.hash = blocks[-1].hash
-        return blocks
+
+        verify_hash = cls.build_hash(blocks, order)
+        return blocks, order, verify_hash
+
+    @classmethod
+    def build_hash(cls, blocks: List[Block], order: List[int]) -> bytes:
+        hasher = hashes.Hash(hashes.SHA3_256())
+        order = [0] + order
+        for layer_num in range(len(order)):
+            block = blocks[order.index(layer_num)]
+            hasher.update(block.hash)
+        return hasher.finalize()
 
     @classmethod
     def update_keys(

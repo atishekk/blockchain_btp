@@ -27,8 +27,8 @@ class VGG11(Model):
 
     LAYER = {"VGG11_Conv": VGG11_Conv, "VGG11_Linear": VGG11_Linear, "": Layer}
 
-    def __init__(self, blocks: List[Block]):
-        super().__init__(blocks)
+    def __init__(self, blocks: List[Block], order: List[int], verify_hash: bytes):
+        super().__init__(blocks, order, verify_hash)
 
     @classmethod
     def load_model(cls, state_file: Path) -> nn.Module:
@@ -40,8 +40,8 @@ class VGG11(Model):
     def new(cls, state_file: Path) -> Model:
         model = cls.load_model(state_file)
         state = model.state_dict()
-        blocks = cls.build(state, cls.MODEL, cls.LAYER)
-        return cls(blocks)
+        blocks, order, verify_hash = cls.build(state, cls.MODEL, cls.LAYER)
+        return cls(blocks, order, verify_hash)
 
     @classmethod
     def build_layer(cls, name: str, index: int, state: OrderedDict) -> Layer | None:
