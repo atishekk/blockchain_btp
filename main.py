@@ -1,5 +1,6 @@
-from interface.cli import CLI
-from pathlib import Path
+import torch
+import torchvision
 
 if __name__ == "__main__":
-    CLI.run(Path("ledger.bin"))
+    vgg = torchvision.models.vgg11(
+        torchvision.models.VGG11_Weights.IMAGENET1K_V1)

@@ -5,16 +5,31 @@ from typing import List
 
 
 class Layer(ABC):
+    """
+        Abstract class representing the parameters
+        for a layer in the given model
+    """
+
     def __init__(self):
         self.layer = nn.Sequential()
         self.layer_name = ""
         self.layer_num = 0
 
     def create_state(self, params: OrderedDict, index: int) -> OrderedDict:
+        """
+            Extracts the required state parameters for the 
+            current layer from the given model state
+        """
         return OrderedDict()
 
 
 class VGG11_Linear(Layer):
+    """
+        Fully connected layer for VGG11
+        Can selectively apply ReLU activation
+        and Dropout layers
+    """
+
     def __init__(
             self,
             layer_num: int,
@@ -56,8 +71,9 @@ class VGG11_Linear(Layer):
 
 class VGG11_Conv(Layer):
     """
-    The layer consists of
-    Conv2d, ReLU and MaxPool2d
+        Feature extraction layers for VGG11
+        Each layer consists of a 2D convolution and ReLU activation
+        Can selectively apply 2D Max Pooling and 2D Adaptive Average Pooling
     """
 
     def __init__(

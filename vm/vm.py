@@ -3,9 +3,12 @@ from typing import cast, List, Dict, Type
 from enum import Enum
 from pathlib import Path
 
+import torch
+
 from models.models import Model
 from models.vgg import VGG11
-from .request import RequestQueue, Request, QueryInput, SetupInput, Input, RequestType
+from blockchain.block import Sentinel
+from .request import RequestQueue, Request, QueryInput, SetupInput, RequestType, Result
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
@@ -25,6 +28,7 @@ class VM:
         self.trusted = self._init_trusted_list()
         self.priv = self._init_RSA_key()
         self.state = State.NOT_READY
+        self.device = torch.device("cpu")
 
     def _init_trusted_list(self) -> Dict[bytes, List[RequestType]]:
         """
@@ -62,31 +66,34 @@ class VM:
         else:
             raise Exception("")
 
-    def query(self, model: Model, input: QueryInput):
+    def query(self, model: Model, input: QueryInput) -> Result:
         """
         Perform inference on the model
         """
         self.state = State.WORKING
 
-        sen_out = model.sentinel.compute(input)
-        iters = len(model.blocks())
+        iters = len(model.blocks()) - 1
+        # sentinel processing
+        sen_out = model.sentinel.compute(input, self.device)
         self.queue.add(Request().add_results(sen_out))
 
         for _ in range(iters):
             req = self.queue.peek()
             inter = req.get_recent_res()
             for b in model.blocks():
-                if b.check_prev(inter):
-                    res = b.compute(inter)
+                if b.check_prev(inter) and type(b) is not Sentinel:
+                    res = b.compute(inter, self.device)
                     req.add_results(res)
                     break
                 else:
                     continue
         if self.verify():
             self.state = State.READY
-            return self.queue.peek().get_recent_res().result()
+            res = self.queue.peek().get_recent_res()
+            return model.sentinel.finalise(res, self.device)
         else:
             self.recovery_mode()
+            raise Exception("")
 
     def verify(self) -> bool:
         pass
@@ -96,3 +103,4 @@ class VM:
         # perform revovery here
         self.state = State.READY
         # raise an exception here
+        raise Exception("")

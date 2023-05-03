@@ -2,20 +2,27 @@ import os
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, cast, Tuple
 import random
-from blockchain.block import Block
-import torch.nn as nn
-from models.layers import Layer
-from blockchain.block import Sentinel, Block, BlockMetadata, Neighbours
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import rsa
-from sqlitedict import SqliteDict
 import pickle
 from collections import OrderedDict
 from pathlib import Path
 
+import torch.nn as nn
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import rsa
+from sqlitedict import SqliteDict
+
+from blockchain.block import Block
+from models.layers import Layer
+from blockchain.block import Sentinel, Block, BlockMetadata, Neighbours
+
 
 class Model(ABC):
+    """
+        The class represents the blockchain
+        based CNN model representation
+    """
+
     def __init__(self, blocks: List[Block], order: List[int], verify_hash: bytes) -> None:
         self._blocks = blocks
         self.sentinel = cast(Sentinel, blocks[0])
@@ -30,6 +37,9 @@ class Model(ABC):
 
     @classmethod
     def encode(cls, model: "Model", file: Path) -> bytes:
+        """
+
+        """
         keys = [b.hash for b in model.blocks()]
         db = SqliteDict(str(file))
         db["keys"] = pickle.dumps(keys)

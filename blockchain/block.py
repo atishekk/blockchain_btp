@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from utils.proof_of_work import ProofOfWork
-from vm.request import Intermediate, QueryInput
+from vm.request import Intermediate, QueryInput, Result
 
 import numpy as np
 import torch
@@ -165,7 +165,7 @@ class Block:
             public_exponent=65537, key_size=2048)
         return private_key
 
-    def compute(self, data: Intermediate) -> Intermediate:
+    def compute(self, data: Intermediate, device: torch.device) -> Intermediate:
         # decrypt AES key
         AES = self.priv.decrypt(
             data.en_AES,
@@ -184,10 +184,10 @@ class Block:
         # convert the data to a torch tensor
         b = BytesIO(de_comp)
         array: np.ndarray = np.load(b)
-        tensor = torch.from_numpy(array)
+        tensor = torch.from_numpy(array).to(device)
 
         # forward inference
-        out_tensor: torch.Tensor = self.params.layer(tensor)
+        out_tensor: torch.Tensor = self.params.layer.to(device).eval()(tensor)
 
         # serialise the output
         out_array = out_tensor.detach().cpu().numpy()
@@ -280,7 +280,7 @@ class Sentinel(Block):
             neigh:      {self.neighbours}
         )"""
 
-    def compute(self, data: QueryInput) -> Intermediate:
+    def compute(self, data: QueryInput, device: torch.device) -> Intermediate:
         # serialise the tensor
         out_array = data.data.detach().cpu().numpy()
         out_b = BytesIO()
@@ -319,3 +319,28 @@ class Sentinel(Block):
         )
         res.digital_sig = digital_sig
         return res
+
+    def finalise(self, data: Intermediate, device: torch.device) -> Result:
+        # decrypt AES key
+        AES = self.priv.decrypt(
+            data.en_AES,
+            padding.OAEP(
+                padding.MGF1(hashes.SHA256()),
+                hashes.SHA256(),
+                None
+            )
+        )
+
+        # decrypt the intermediate data
+        cipher = Cipher(algorithms.AES(AES), modes.CBC(data.iv))
+        decryptor = cipher.decryptor()
+        de_comp = decryptor.update(data.comp) + decryptor.finalize()
+
+        # convert the data to a torch tensor
+        b = BytesIO(de_comp)
+        array: np.ndarray = np.load(b)
+        tensor = torch.from_numpy(array)
+        probabilities: torch.Tensor = torch.nn.Softmax(
+            dim=-1).to(device)(tensor)
+
+        return Result(cast(int, probabilities.argmax(0).item()))

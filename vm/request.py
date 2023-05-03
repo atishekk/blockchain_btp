@@ -1,6 +1,7 @@
 from ordered_set import OrderedSet
 import uuid
 from collections import deque
+import json
 from abc import ABC, abstractmethod
 import torch
 from enum import Enum
@@ -50,8 +51,14 @@ class QueryInput(Input):
 
 
 class Result:
-    def __init__(self) -> None:
-        pass
+    with open("./image_index.json") as fi:
+        INDEX = json.load(fi)
+
+    def __init__(self, id: int) -> None:
+        self.id = id
+
+    def get_class(self) -> str:
+        return self.INDEX[str(self.id)]
 
 
 class Intermediate:
@@ -71,9 +78,6 @@ class Intermediate:
 
     def serialise(self) -> bytes:
         return pickle.dumps((self.block_hash, self.en_AES, self.comp, self.iv))
-
-    def result(self) -> Result:
-        pass
 
 
 class RequestType(str, Enum):
