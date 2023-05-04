@@ -1,13 +1,17 @@
-from .models import Model
 from typing import List
-from models.layers import VGG11_Conv, VGG11_Linear
-from blockchain.block import Block
+from pathlib import Path
+from collections import OrderedDict
+
+import numpy as np
+from PIL import Image
+import torch
 import torch.nn as nn
 import torchvision
-from collections import OrderedDict
+
+from .models import Model
+from models.layers import VGG11_Conv, VGG11_Linear
+from blockchain.block import Block
 from .layers import Layer
-from pathlib import Path
-import torch
 
 
 class VGG11(Model):
@@ -26,6 +30,10 @@ class VGG11(Model):
     ]
 
     LAYER = {"VGG11_Conv": VGG11_Conv, "VGG11_Linear": VGG11_Linear, "": Layer}
+
+    MEAN = [0.485, 0.456, 0.406]
+    STD = [0.229, 0.224, 0.225]
+    IMAGE_SIZE = 224
 
     def __init__(self, blocks: List[Block], order: List[int], verify_hash: bytes):
         super().__init__(blocks, order, verify_hash)
@@ -47,3 +55,13 @@ class VGG11(Model):
     def build_layer(cls, name: str, index: int, state: OrderedDict) -> Layer | None:
         p = [index] + cls.MODEL[index-1][1:] + [state, True]
         return cls.LAYER[name](*p)
+
+    def load_and_preprocess(self, img_path: Path) -> torch.Tensor:
+        img = Image.open(str(img_path))
+        img = img.resize((self.IMAGE_SIZE, self.IMAGE_SIZE))
+        img_array = np.asarray(img, np.float32) / 255.0
+        img_array = np.transpose(img_array, (2, 0, 1))
+        img_array = np.expand_dims(img_array, 0)
+        tensor = torch.from_numpy(img_array)
+        norm = torchvision.transforms.Normalize(self.MEAN, self.STD)
+        return norm(tensor)

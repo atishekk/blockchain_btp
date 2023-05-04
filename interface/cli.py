@@ -1,9 +1,9 @@
-from vm.vm import VM
-from vm.request import RequestQueue, SetupInput
+from vm.vm import VM, State
+from vm.request import RequestQueue, SetupInput, QueryInput
 from typing import List
 from pathlib import Path
-
-from cryptography.fernet import Fernet
+from PIL import Image
+import numpy as np
 
 
 class CLI:
@@ -65,7 +65,13 @@ class CLI:
         self.vm.setup(s_input)
 
     def query(self, tokens: List[str]):
-        print("Query")
+        img_path = Path(tokens[1])
+        q_input = QueryInput(self.vm.model.load_and_preprocess(
+            img_path), bytes(), bytes())
+        if self.vm.state != State.READY:
+            print("VM not setup")
+        res = self.vm.query(q_input)
+        print(res.get_class())
 
     def utils_build(self, tokens: List[str]):
         model_name = tokens[2]

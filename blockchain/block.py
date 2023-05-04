@@ -264,8 +264,21 @@ class Sentinel(Block):
         self.set_hash(0, bytes(bytearray(32)))
 
     @ classmethod
-    def load(cls, metadata: BlockMetadata, neighbours: Neighbours, params: "Layer", hash: bytes, nonce: int, AES: bytes, priv: rsa.RSAPrivateKey) -> "Sentinel":
-        return cast(Sentinel, super().load(metadata, neighbours, params, hash, nonce, AES, priv))
+    def load(
+        cls,
+        metadata: BlockMetadata,
+        neighbours: Neighbours,
+        params: "Layer",
+        hash: bytes,
+        nonce: int,
+        AES: bytes,
+        priv: rsa.RSAPrivateKey
+    ) -> "Sentinel":
+        b = Sentinel(metadata, neighbours, params)
+        b.priv = priv
+        b.pub = b.priv.public_key()
+        b.AES = AES
+        return b
 
     def __repr__(self) -> str:
         return f"""
@@ -302,9 +315,7 @@ class Sentinel(Block):
             )
         )
 
-        # compute the blocks hash
-        pow = ProofOfWork(ProofOfWork.TARGET_BITS, self)
-        block_hash = pow.compute()
+        block_hash = bytes(bytearray(32))
 
         # compute the digital signature
         res = Intermediate(block_hash, out_AES, out_comp, bytes(), iv)

@@ -7,6 +7,7 @@ from collections import OrderedDict
 from pathlib import Path
 
 import torch.nn as nn
+import torch
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -15,6 +16,7 @@ from sqlitedict import SqliteDict
 from blockchain.block import Block
 from models.layers import Layer
 from blockchain.block import Sentinel, Block, BlockMetadata, Neighbours
+from vm.request import QueryInput
 
 
 class Model(ABC):
@@ -34,6 +36,10 @@ class Model(ABC):
 
     def get_sentinel(self) -> Block:
         return self.sentinel
+
+    @abstractmethod
+    def load_and_preprocess(self, img_path: Path) -> torch.Tensor:
+        pass
 
     @classmethod
     def encode(cls, model: "Model", file: Path) -> bytes:

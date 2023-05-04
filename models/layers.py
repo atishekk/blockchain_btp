@@ -98,6 +98,7 @@ class VGG11_Conv(Layer):
 
         if feature_output:
             ll.append(nn.AdaptiveAvgPool2d((7, 7)))
+            ll.append(nn.Flatten(0))
 
         self.layer = nn.Sequential(*ll)
         if not loading:

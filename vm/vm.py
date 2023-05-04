@@ -4,13 +4,13 @@ from enum import Enum
 from pathlib import Path
 
 import torch
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization, hashes
 
 from models.models import Model
 from models.vgg import VGG11
 from blockchain.block import Sentinel
 from .request import RequestQueue, Request, QueryInput, SetupInput, RequestType, Result
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
 
 
 class State(str, Enum):
@@ -66,21 +66,21 @@ class VM:
         else:
             raise Exception("")
 
-    def query(self, model: Model, input: QueryInput) -> Result:
+    def query(self, input: QueryInput) -> Result:
         """
         Perform inference on the model
         """
         self.state = State.WORKING
 
-        iters = len(model.blocks()) - 1
+        iters = len(self.model.blocks()) - 1
         # sentinel processing
-        sen_out = model.sentinel.compute(input, self.device)
+        sen_out = self.model.sentinel.compute(input, self.device)
         self.queue.add(Request().add_results(sen_out))
 
         for _ in range(iters):
             req = self.queue.peek()
             inter = req.get_recent_res()
-            for b in model.blocks():
+            for b in self.model.blocks():
                 if b.check_prev(inter) and type(b) is not Sentinel:
                     res = b.compute(inter, self.device)
                     req.add_results(res)
@@ -90,13 +90,18 @@ class VM:
         if self.verify():
             self.state = State.READY
             res = self.queue.peek().get_recent_res()
-            return model.sentinel.finalise(res, self.device)
+            return self.model.sentinel.finalise(res, self.device)
         else:
             self.recovery_mode()
             raise Exception("")
 
     def verify(self) -> bool:
-        pass
+        hasher = hashes.Hash(hashes.SHA3_256())
+        for res in self.queue.peek().set:
+            hasher.update(res.block_hash)
+
+        h = hasher.finalize()
+        return h == self.model.verify_hash
 
     def recovery_mode(self):
         self.state = State.RECOVERY

@@ -110,4 +110,4 @@ class RequestQueue:
         return self.queue.popleft()
 
     def peek(self) -> Request:
-        return self.queue[0]
+        return self.queue[-1]
