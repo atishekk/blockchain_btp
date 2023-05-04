@@ -105,7 +105,6 @@ class VM:
 
     def recovery_mode(self):
         self.state = State.RECOVERY
-        # perform revovery here
+        self.setup(self.setup_input)
         self.state = State.READY
-        # raise an exception here
         raise Exception("")

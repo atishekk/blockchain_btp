@@ -1,8 +1,10 @@
 import time
 import os
-import pickle
 from io import BytesIO
 from typing import Tuple
+
+import numpy as np
+import torch
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
@@ -10,9 +12,6 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from utils.proof_of_work import ProofOfWork
 from vm.request import Intermediate, QueryInput, Result
-
-import numpy as np
-import torch
 
 
 from typing import TYPE_CHECKING, cast
