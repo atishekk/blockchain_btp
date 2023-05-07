@@ -55,12 +55,18 @@ class VM:
             )
 
     def setup(self, input: SetupInput):
+        """
+            Load the model 
+        """
         self.state = State.WORKING
 
         if input.model in self.MODELS:
+            # build the model using the correct class
             model_cls = self.MODELS[input.model]
+            # decode the model from the model file
             self.model = model_cls.decode(input.model_file, input.key)
             self.state = State.READY
+            # store the input for recovery if needed
             self.setup_input = input
 
         else:
@@ -73,7 +79,7 @@ class VM:
         self.state = State.WORKING
 
         iters = len(self.model.blocks()) - 1
-        # sentinel processing
+        # sentinel block computes the input
         sen_out = self.model.sentinel.compute(input, self.device)
         self.queue.add(Request().add_results(sen_out))
 
@@ -81,21 +87,29 @@ class VM:
             req = self.queue.peek()
             inter = req.get_recent_res()
             for b in self.model.blocks():
+                # if the last result in the queue is from the previous layer
+                # the current block can continue the computation and add
+                # the results back to the queue
                 if b.check_prev(inter) and type(b) is not Sentinel:
                     res = b.compute(inter, self.device)
                     req.add_results(res)
                     break
                 else:
                     continue
+        # if the computations are valid return the results and exit
         if self.verify():
             self.state = State.READY
-            res = self.queue.peek().get_recent_res()
+            res = self.queue.remove().get_recent_res()
             return self.model.sentinel.finalise(res, self.device)
         else:
             self.recovery_mode()
             raise Exception("")
 
     def verify(self) -> bool:
+        """
+            Verify that the model blocks
+            are not mutated
+        """
         hasher = hashes.Hash(hashes.SHA3_256())
         for res in self.queue.peek().set:
             hasher.update(res.block_hash)

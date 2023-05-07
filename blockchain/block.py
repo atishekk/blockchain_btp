@@ -136,6 +136,7 @@ class Block:
             nonce:      {self.nonce}
             metadata:   {self.metadata.timestamp}
             AES:        {self.AES.hex()}
+            params:     {self.params.layer}
             neigh:      {self.neighbours}
         )"""
 

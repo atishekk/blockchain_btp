@@ -11,8 +11,14 @@ class CLI:
         setup <model-name> <model-file> <fernet-key>
         query <image-path>
         utils build <model-name> <model-state-file>
-        utils publish <model-file> <encryption-key>
     """
+
+    # USAGE = """
+    #     setup <model-name> <model-file> <fernet-key>
+    #     query <image-path>
+    #     utils build <model-name> <model-state-file>
+    #     utils publish <model-file> <encryption-key>
+    # """
 
     @classmethod
     def run(cls, ledger: Path):
@@ -56,6 +62,10 @@ class CLI:
         self.vm = VM(RequestQueue(ledger_file))
 
     def setup(self, tokens: List[str]):
+        """
+            Setup the model for the current
+            VM object
+        """
         model_name = tokens[1]
         model_file = Path(tokens[2])
         fernet_key = tokens[3]
@@ -63,8 +73,13 @@ class CLI:
         s_input = SetupInput(model_name, model_file, fernet_key)
         s_input.validate(self.vm)
         self.vm.setup(s_input)
+        print(self.vm.model.blocks())
 
     def query(self, tokens: List[str]):
+        """
+            Query on the currently setup model
+            If the model is not setup an error is thrown
+        """
         img_path = Path(tokens[1])
         q_input = QueryInput(self.vm.model.load_and_preprocess(
             img_path), bytes(), bytes())
